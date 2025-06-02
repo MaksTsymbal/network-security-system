@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+sqlalchemy
+databases[postgresql]
+alembic
+cryptography
+pytest
+requests
+psycopg2-binary
+prometheus_client

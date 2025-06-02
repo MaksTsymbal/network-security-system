@@ -1,0 +1,6 @@
+server.host: "0.0.0.0"
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+xpack.security.enabled: false
+xpack.license_management.ui.enabled: false
+xpack.production.license_service.enabled: false

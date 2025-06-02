@@ -1,0 +1,30 @@
+%YAML 1.1
+---
+vars:
+  # зона “домашніх” мереж
+  HOME-NET: "[195.128.227.0/25]"
+
+logging:
+  default-log-level: info
+
+default-rule-path: /etc/suricata/rules
+rule-files:
+  - local.rules       # кастомні правила у suricata/rules/local.rules
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/suricata/eve.json
+      types: [alert, http, dns]
+
+af-packet:
+  - interface: eth0        # “інтерфейс” з ip addr
+    tpacket-v3: yes
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmap: yes
+    block-size: 262144
+    block-count: 32
+    ring-size: 8192

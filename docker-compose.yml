@@ -1,0 +1,95 @@
+services:
+  # 1) Бекенд — FastAPI + Python
+  backend:
+    build:
+      context: ./backend
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  # 2) БД — Postgres
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  # 3) suricata для перехоплення мережевого трафіку
+  suricata:
+    network_mode: host
+    image: jasonish/suricata:latest
+    cap_add: ["NET_ADMIN","NET_RAW", "SYS_RESOURCE"]
+    privileged: true
+    volumes:
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./suricata/rules:/etc/suricata/rules:ro
+      - ./suricata/logs:/var/log/suricata
+    entrypoint: ["suricata"]
+    command:
+      - "-c"
+      - "/etc/suricata/suricata.yaml"
+      - "--af-packet"
+
+  # 3.1) attacker для генерації керруємої атаки
+  attacker:
+    image: python:3.10-slim
+    depends_on:
+      - suricata
+    volumes:
+      - ./scripts:/scripts:ro
+    working_dir: /scripts
+    command: >
+      sh -c "
+        pip install scapy &&
+        python generate_attack.py
+      "
+
+  # 4) Elasticsearch для логів
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+
+  # 5) Kibana для перегляду логів Suricata
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.0
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - XPACK_SECURITY_ENABLED=false
+      - XPACK_LICENSE_MANAGEMENT_UI_ENABLED=false
+      - XPACK_PRODUCTION_LICENSE_SERVICE_ENABLED=false
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+  # 6) Grafana для метрик и дашбордів
+  grafana:
+    image: grafana/grafana:9.2.0
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - elasticsearch
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.17.0
+    user: root
+    volumes:
+      - ./suricata/logs:/usr/share/filebeat/logs:ro
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    depends_on:
+      - elasticsearch
+
+volumes:
+  db_data:
+  suricata_logs:
