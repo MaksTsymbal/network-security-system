@@ -18,5 +18,7 @@ CryptoKey = Table(
     Column('status', String),
 )
 
+crypto_keys = CryptoKey
+
 engine = create_engine(DATABASE_URL)
 metadata.create_all(engine)
